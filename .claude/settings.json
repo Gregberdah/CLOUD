@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/reel-kit/scripts/setup_env.sh\" >/tmp/reel-setup.log 2>&1 || echo 'reel-kit: setup incomplet, voir /tmp/reel-setup.log'",
+            "timeout": 900
+          }
+        ]
+      }
+    ]
+  }
+}

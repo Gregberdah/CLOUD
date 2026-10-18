@@ -1,0 +1,8 @@
+# Modèles (téléchargés par reel-kit/scripts/setup_env.sh)
+reel-kit/models/*
+!reel-kit/models/.gitkeep
+# Projets de montage : vidéos, calques, rendus (lourds)
+projects/*
+!projects/.gitkeep
+__pycache__/
+*.pyc

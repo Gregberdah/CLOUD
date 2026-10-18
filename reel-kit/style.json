@@ -1,0 +1,18 @@
+{
+  "canvas": {"width": 1080, "height": 1920, "fps": 30},
+  "safe": {"top": 220, "bottom": 380, "right": 140},
+  "fonts": {
+    "key": {"family": "Instrument Serif", "file": "InstrumentSerif-Italic.ttf", "style": "italic"},
+    "support": {"family": "Inter", "file": "Inter-SemiBold.ttf", "weight": 600},
+    "mono": {"family": "DM Mono", "file": "DMMono-Medium.ttf", "weight": 500}
+  },
+  "colors": {
+    "bg": "#09090A",
+    "text": "#F5F5F4",
+    "muted": "#A3A3AB",
+    "gradient": ["#FFDDCC", "#F6BDD8", "#C9B9FF"]
+  },
+  "captions": {"max_words": 3, "min_hold": 0.4, "key_px": 190, "support_px": 64},
+  "motion": {"in_min": 0.2, "in_max": 0.35, "max_push_in": 0.06},
+  "audio": {"lufs": -14, "true_peak": -1.0, "breath": 0.1, "pause_threshold": 0.4}
+}

@@ -1,0 +1,69 @@
+<!doctype html><meta charset="utf-8">
+<style>
+  html,body{margin:0;background:transparent;width:1080px;height:1920px;overflow:hidden}
+  #stage{position:absolute;inset:0}
+  .abs{position:absolute;will-change:transform,opacity}
+  .mono{font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.18em;color:var(--muted);font-size:26px}
+  .sans{font-family:'Inter',sans-serif;font-weight:600;color:var(--text)}
+  .serif{font-family:'Instrument Serif',serif;font-style:italic}
+  .card{background:rgba(24,24,27,.86);border:1px solid rgba(255,255,255,.09);border-radius:30px;backdrop-filter:blur(8px);
+        box-shadow:0 24px 60px rgba(0,0,0,.45)}
+</style>
+<div id="stage"></div>
+<script src="reel.js"></script>
+<script>
+/* Motion layer pilotée par window.DATA = scenes.json :
+   { style, layout:{W,H,safe,face}, scenes:[ {id, layer:"back"|"front", at, end, type, props} ] }
+   at = l'instant du MOT DÉCLENCHEUR (motion_plan.py le calcule depuis words.cut.json). Une idée à l'écran à la fois.
+   Types fournis : bigword, notif_stack, tiles, source_card, label. Ajoute les tiens dans COMPONENTS. */
+window.READY = false;
+const D = window.DATA, S = D.style, L = D.layout, st = $('#stage'), C = S.colors;
+const root = document.documentElement.style; root.setProperty('--text', C.text); root.setProperty('--muted', C.muted);
+const cx = L.face ? L.face.cx : 470, W_SAFE = L.W - L.safe.right;
+const faceTop = L.face ? L.face.head_top : 700, faceBot = L.face ? L.face.face_bottom : 1300;
+const el = (cls, css = {}, txt = '') => { const d = document.createElement('div'); d.className = 'abs ' + cls; Object.assign(d.style, css); d.textContent = txt; return d; };
+
+const COMPONENTS = {
+  /* Un mot énorme, derrière la tête (layer back) : le hook. */
+  bigword(p) { const wrap = el('', { left: 0, width: W_SAFE + 'px', textAlign: 'center' });
+    const w = document.createElement('span'); w.className = 'serif'; w.textContent = p.text; w.style.lineHeight = .9; wrap.append(w);
+    gradientText(w, C.gradient); wrap.style.opacity = 0; st.append(wrap);
+    const px = fitWidth(w, p.px || 340, W_SAFE - 80); wrap.style.top = (faceTop - px * 0.25) + 'px'; st.removeChild(wrap);
+    return { node: wrap, update(ph, t) { wrap.style.transform = `scale(${0.9 + 0.1 * ph.p})`; } }; },
+  /* Pile de notifications ("your brain"), au-dessus de la tête. */
+  notif_stack(p) { const g = el('', { left: (cx - 360) + 'px', top: Math.max(L.safe.top + 20, faceTop - 560) + 'px', width: '720px', height: '520px' });
+    const items = p.items.map((txt, i) => { const c = el('card', { left: 0, width: '720px', height: '110px', top: (i * 130) + 'px', padding: '0 34px', boxSizing: 'border-box',
+        display: 'flex', alignItems: 'center', gap: '20px' }); const m = el('mono', { position: 'static', fontSize: '22px' }, p.from || 'brain');
+      const s = el('sans', { position: 'static', fontSize: '38px' }, txt); c.append(m, s); g.append(c); return c; });
+    return { node: g, update(ph, t, sc) { items.forEach((c, i) => { const k = easeOut((t - sc.at - i * 0.18) / 0.3);
+        c.style.opacity = k; c.style.transform = `translateY(${(1 - k) * -40}px) scale(${0.96 + 0.04 * k})`; }); } }; },
+  /* Trois tuiles d'app, tapées une par une (clics -> cues tap). props.items = ["marche","ménage","douche"], taps = instants relatifs. */
+  tiles(p) { const g = el('', { left: (cx - 400) + 'px', top: (L.H - L.safe.bottom - 300) + 'px', width: '800px', height: '240px', display: 'flex', gap: '28px', justifyContent: 'center' });
+    const tl = p.items.map(txt => { const c = el('card sans', { position: 'static', width: '240px', height: '240px', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', fontSize: '40px', textAlign: 'center' }, txt); g.append(c); return c; });
+    return { node: g, update(ph, t, sc) { tl.forEach((c, i) => { const tap = (p.taps || [0.6, 1.2, 1.8])[i], k = clamp((t - sc.at - tap) / 0.25);
+        const press = k > 0 && k < 1 ? 1 - 0.07 * Math.sin(k * Math.PI) : 1;
+        c.style.transform = `scale(${press})`; c.style.outline = k >= 1 ? `3px solid ${C.gradient[1]}` : 'none'; }); } }; },
+  /* Carte source qui "tape" l'année. */
+  source_card(p) { const c = el('card', { left: (cx - 400) + 'px', top: (L.H - L.safe.bottom - 330) + 'px', width: '800px', padding: '36px 44px', boxSizing: 'border-box' });
+    const a = el('mono', { position: 'static' }, p.label || 'Source'), b = el('sans', { position: 'static', fontSize: '50px', marginTop: '16px' }, p.title),
+      y = el('serif', { position: 'static', fontSize: '84px', marginTop: '6px' }, ''); gradientText(y, C.gradient); c.append(a, b, y);
+    return { node: c, update(ph, t, sc) { const n = Math.floor(clamp((t - sc.at - 0.35) / 0.5) * String(p.year).length); y.textContent = String(p.year).slice(0, n); } }; },
+  /* Petite étiquette mono (légende, nom, lieu). */
+  label(p) { const n = el('mono', { left: 0, width: W_SAFE + 'px', textAlign: 'center', top: (p.y || L.safe.top + 30) + 'px' }, p.text);
+    return { node: n, update(ph) { n.style.transform = `translateY(${(1 - ph.p) * 14}px)`; } }; },
+};
+
+window.NOTES = [];
+const scenes = D.scenes.filter(s => s.layer === LAYER).map(sc => {
+  const comp = COMPONENTS[sc.type](sc.props || {}); comp.node.style.opacity = 0; st.append(comp.node); return { sc, comp };
+});
+window.setTime = t => {
+  for (const { sc, comp } of scenes) {
+    const ph = phase(t, sc.at, sc.end, 0.28, 0.22);
+    comp.node.style.opacity = ph.vis ? ph.o * Math.min(1, ph.p * 1.5) : 0;
+    if (ph.vis) comp.update(ph, t, sc);
+  }
+};
+loadFonts(S).then(() => { setTime(0); window.READY = true; });
+</script>

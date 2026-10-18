@@ -1,0 +1,59 @@
+<!doctype html><meta charset="utf-8">
+<style>
+  html,body{margin:0;background:transparent;width:1080px;height:1920px;overflow:hidden}
+  #stage{position:absolute;inset:0}
+  .cap{position:absolute;left:0;width:calc(1080px - 140px);text-align:center;display:flex;flex-direction:column;
+       align-items:center;gap:14px;will-change:transform,opacity}
+  .key{font-family:'Instrument Serif',serif;font-style:italic;line-height:.95;letter-spacing:-.02em;white-space:nowrap}
+  .sup{font-family:'Inter',sans-serif;font-weight:600;color:var(--text);line-height:1.05;letter-spacing:-.01em;
+       text-shadow:0 2px 18px rgba(0,0,0,.45)}
+</style>
+<div id="stage"></div>
+<script src="reel.js"></script>
+<script>
+/* Données : window.DATA = captions.json (injecté par render_html.py --data). ?layer=back -> mots-clés derrière la tête,
+   ?layer=front -> mots de support devant, hors visage. */
+window.READY = false;
+const D = window.DATA, S = D.style, L = D.layout, st = $('#stage');
+document.documentElement.style.setProperty('--text', S.colors.text);
+const face = L.face, usableTop = L.safe.top, usableBottom = L.H - L.safe.bottom;
+const hasHeadroom = face && face.head_top > usableTop + 340;
+
+const MAXW = L.W - L.safe.right - 80;
+const SC = D.scenes || [];
+const busy = (t0, t1, y0, y1) => SC.some(s => s.layer === 'front' && s.band && s.at < t1 && s.end > t0 && s.band[0] < y1 && s.band[1] > y0);
+window.NOTES = [];
+const fitList = [];
+const els = D.items.map(it => {
+  const key = it.words.filter(w => w.key), sup = it.words.filter(w => !w.key);
+  const mk = (list, cls, px) => { const d = document.createElement('div'); d.className = cls; d.style.fontSize = px + 'px';
+    d.textContent = list.map(w => w.t).join(' '); return d; };
+  const box = document.createElement('div'); box.className = 'cap'; box.style.opacity = 0;
+  let mine = false;
+  if (LAYER === 'back' && key.length && !SC.some(x => x.type === 'bigword' && x.at < it.end && x.end > it.start)) { const k = mk(key, 'key', S.captions.key_px); gradientText(k, S.colors.gradient); box.append(k); mine = true; fitList.push([k, S.captions.key_px]);
+    // derrière la tête : centré sur le haut du crâne (le cut-out masque le bas du mot)
+    const y = face ? face.head_top + 0.10 * (face.face_bottom - face.head_top) : 560;
+    box.style.top = (y - S.captions.key_px * 0.5) + 'px'; box.style.left = (face ? face.cx - (1080 - 140) / 2 : 0) + 'px'; }
+  if (LAYER === 'front' && sup.length) { const s = mk(sup, 'sup', S.captions.support_px); box.append(s); mine = true; fitList.push([s, S.captions.support_px]);
+    const h = S.captions.support_px * 1.2;
+    const cands = [];
+    if (hasHeadroom) cands.push(Math.max(usableTop + 40, face.head_top - h - 70));                 // au-dessus de la tête
+    cands.push(Math.min(usableBottom - h - 20, (face ? face.face_bottom : 1250) + 70));             // sous le menton
+    const y = cands.find(c => !busy(it.start, it.end, c, c + h));
+    if (y === undefined) { window.NOTES.push(`sous-titre masqué ${it.start.toFixed(2)}s : scène à l'écran sur les deux zones`); mine = false; }
+    else { box.style.top = y + 'px'; box.style.left = (face ? face.cx - (1080 - 140) / 2 : 0) + 'px'; } }
+  if (!mine) return null;
+  st.append(box); return { it, box };
+}).filter(Boolean);
+
+window.READYFIT = () => { for (const [n, px] of fitList) { const p = n.parentNode; st.append(n); n.style.position = 'absolute'; fitWidth(n, px, MAXW); n.style.position = ''; p.append(n); } };
+window.setTime = t => {
+  for (const { it, box } of els) {
+    const ph = phase(t, it.start, it.end, 0.2, 0.12);
+    box.style.opacity = ph.vis ? ph.o : 0;
+    const scale = 0.92 + 0.08 * ph.p, dy = (1 - ph.p) * 18;
+    box.style.transform = `translateY(${dy}px) scale(${scale})`;
+  }
+};
+loadFonts(S).then(() => { READYFIT(); setTime(0); window.READY = true; });
+</script>
