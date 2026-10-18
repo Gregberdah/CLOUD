@@ -5,7 +5,7 @@ Basé sur le "5-Pass Reel Edit Kit" (@zeeuiux), monté ici avec Claude Code dans
 
 ## Utiliser
 
-1. Dépose ton clip brut (1080p, < 30 Mo, air mort coupé au début et à la fin, du jeu au-dessus de la tête pour le texte).
+1. Dépose ton clip brut (1080p, air mort coupé au début et à la fin, du jeu au-dessus de la tête pour le texte).
 2. Dis à Claude : `/reel-edit` + le chemin du clip. Le skill charge toute la méthode et tes règles de style.
 3. Valide chaque passe en tapant `next`. Entre deux, donne des notes de réal (`prompts/06-director-notes.md`).
 4. Avant de poster : `prompts/07-before-you-post.md` (téléphone, son on puis off, cover, -14 LUFS).

@@ -24,7 +24,7 @@ Tout se fait en code, dans le repo, avec les outils de `reel-kit/`. Lis `reel-ki
 ## Avant de commencer
 
 - Environnement : `bash reel-kit/scripts/setup_env.sh` (idempotent ; déjà lancé par le hook de session).
-- Le clip est dans `uploads/` ou à un chemin donné. Crée le projet : `bash reel-kit/scripts/new_project.sh <nom> <clip>` (vérifie 1080p, < 30 Mo, audio). Rapporte les avertissements.
+- Le clip est dans `uploads/` ou à un chemin donné. Crée le projet : `bash reel-kit/scripts/new_project.sh <nom> <clip>` (vérifie 1080p, durée, audio). Rapporte les avertissements.
 - Dossier projet : `projects/<nom>/` (raw, words.json, matte.mkv, layers/back|front/<calque>/ en PNG, renders/, cues.json…). Tout y reste.
 - `$P` = `projects/<nom>`, `$KIT` = `reel-kit`.
 

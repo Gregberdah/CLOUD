@@ -15,7 +15,6 @@ def main(path):
     mb = os.path.getsize(path) / 1e6
     print(f"{os.path.basename(path)}: {w}x{h} @ {fps:.2f} fps, {dur:.1f}s, {mb:.1f} Mo, audio={'oui' if a else 'NON'}")
     warn = []
-    if mb > 30: warn.append("plus de 30 Mo : ré-exporte plus léger (1080p, ~8 Mbps)")
     if (w, h) != (1080, 1920): warn.append("pas en 1080x1920 : il sera recadré/redimensionné en plein cadre 9:16")
     if not a: warn.append("aucune piste audio : impossible de transcrire")
     if dur > 90: warn.append("plus de 90 s : la transcription et le matting seront longs")
