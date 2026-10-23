@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Vérifie le clip brut : 1080p, < 30 Mo, durée, audio, et du jeu en haut de cadre."""
+"""Vérifie le clip brut : 1080p, durée, audio, et du jeu en haut de cadre."""
 import json, os, subprocess, sys
 
 def main(path):
