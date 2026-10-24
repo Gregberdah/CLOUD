@@ -27,6 +27,30 @@ def run_whisper(wav, lang):
     return [{"w": w.word.strip(), "start": round(w.start, 3), "end": round(w.end, 3)}
             for s in segs for w in s.words]
 
+def speech_segments(audio, sr=16000, max_len=12.0):
+    """Segments de parole [(début, fin)] par énergie : plancher de bruit + 12 dB, trous < 0.35 s comblés, marge 0.2 s."""
+    hop = int(0.02 * sr); n = len(audio) // hop
+    rms = np.sqrt((audio[:n * hop].reshape(n, hop) ** 2).mean(1) + 1e-12); db = 20 * np.log10(rms)
+    thr = max(np.percentile(db, 10) + 12, -50); on = db > thr
+    segs, st = [], None
+    for i, v in enumerate(on):
+        if v and st is None: st = i
+        if not v and st is not None: segs.append([st, i]); st = None
+    if st is not None: segs.append([st, n])
+    merged = []
+    for s0, s1 in segs:
+        if merged and (s0 - merged[-1][1]) * 0.02 < 0.35: merged[-1][1] = s1
+        else: merged.append([s0, s1])
+    out = []
+    for s0, s1 in merged:
+        if (s1 - s0) * 0.02 < 0.15: continue
+        a0, a1 = max(0, s0 * 0.02 - 0.2), min(len(audio) / sr, s1 * 0.02 + 0.2)
+        while a1 - a0 > max_len:                       # coupe au point le plus calme vers le milieu
+            lo, hi = int((a0 + max_len * 0.5) / 0.02), int((a0 + max_len) / 0.02)
+            c = lo + int(np.argmin(db[lo:hi])); out.append((a0, c * 0.02)); a0 = c * 0.02
+        out.append((a0, a1))
+    return out or [(0.0, len(audio) / sr)]
+
 def run_parakeet(wav, lang):
     import sherpa_onnx
     d = os.path.join(KIT, "models", "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8")
@@ -36,18 +60,21 @@ def run_parakeet(wav, lang):
         encoder=f"{d}/encoder.int8.onnx", decoder=f"{d}/decoder.int8.onnx", joiner=f"{d}/joiner.int8.onnx",
         tokens=f"{d}/tokens.txt", num_threads=4, model_type="nemo_transducer")
     audio = read_wav(wav)
-    s = rec.create_stream(); s.accept_waveform(16000, audio); rec.decode_stream(s)
-    r = s.result
-    words, cur, cur_t = [], "", None
-    last_t = []
-    for tok, t in zip(r.tokens, r.timestamps):
-        if tok.startswith("▁") or tok.startswith(" "):
-            if cur: words.append([cur, cur_t, last_t[-1]])
-            cur, cur_t, last_t = tok.lstrip("▁ "), t, [t]
-        else:
-            cur += tok; last_t.append(t)
-            if cur_t is None: cur_t = t
-    if cur: words.append([cur, cur_t, last_t[-1]])
+    words = []
+    # Parakeet perd la langue/le fil sur un clip entier : on découpe sur les silences et on décode segment par segment.
+    for (s0, s1) in speech_segments(audio):
+        s = rec.create_stream(); s.accept_waveform(16000, audio[int(s0 * 16000):int(s1 * 16000)]); rec.decode_stream(s)
+        r = s.result
+        cur, cur_t, last_t = "", None, []
+        for tok, t in zip(r.tokens, r.timestamps):
+            t = t + s0
+            if tok.startswith("\u2581") or tok.startswith(" "):
+                if cur: words.append([cur, cur_t, last_t[-1]])
+                cur, cur_t, last_t = tok.lstrip("\u2581 "), t, [t]
+            else:
+                cur += tok; last_t.append(t)
+                if cur_t is None: cur_t = t
+        if cur: words.append([cur, cur_t, last_t[-1]])
     out, dur = [], len(audio) / 16000
     for k, (w, st, lt) in enumerate(words):
         nxt = words[k + 1][1] if k + 1 < len(words) else dur
